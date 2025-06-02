@@ -1,0 +1,48 @@
+# Example Terraform variables file
+# Copy this file to terraform.tfvars and modify the values as needed
+
+# Azure region where resources will be deployed
+location = "westus2"
+
+# Environment name (dev, staging, prod)
+environment = "dev"
+
+# Project name used for naming resources
+project_name = "evgblobtrigpvt"
+
+# Name of the blob container to monitor for events
+blob_container_name = "uploads"
+
+# Virtual network configuration
+vnet_address_space = ["10.0.0.0/16"]
+private_endpoints_subnet_cidr = "10.0.1.0/24"
+function_app_subnet_cidr = "10.0.2.0/24"
+reserved_subnet_cidr = "10.0.3.0/24"
+
+# Storage account configuration
+storage_account_tier = "Standard"
+storage_account_replication_type = "LRS"
+
+# Event Hub configuration
+eventhub_sku = "Standard"
+eventhub_capacity = 1
+
+# Function App configuration
+function_app_runtime = "dotnet"
+function_app_version = "8"
+
+# Bastion and Jumpbox configuration
+bastion_subnet_cidr = "10.0.4.0/24"
+jumpbox_subnet_cidr = "10.0.5.0/24"
+jumpbox_vm_size = "Standard_B2s"
+jumpbox_admin_username = "azureuser"
+# jumpbox_admin_password = "P@ssw0rd123!"  # Uncomment and set secure password
+
+# Tags applied to all resources
+tags = {
+  Environment = "dev"
+  Project     = "EventGridBlobTrigger"
+  ManagedBy   = "Terraform"
+  Owner       = "DevOps Team"
+  CostCenter  = "Engineering"
+}
