@@ -1,6 +1,6 @@
 # Event Grid Blob Trigger with Private Endpoints
 
-This repository demonstrates a production-ready, secure Azure Event Grid system that processes blob storage events using Azure Functions with complete network isolation. The architecture is designed for private, enterprise-grade deployments with a public testing mode available for initial validation.
+This repository demonstrates a secure Azure Event Grid system that processes blob storage events using Azure Functions with complete network isolation. The architecture is designed for private, enterprise-grade deployments with a public testing mode available for initial validation.
 
 ## 🏗️ Architecture Overview
 
@@ -25,7 +25,9 @@ This repository demonstrates a production-ready, secure Azure Event Grid system 
 
 ## 🚀 Getting Started
 
-This solution is designed for deployment through your existing CI/CD pipeline. The repository provides the complete infrastructure and application code ready for production deployment.
+This solution's architecture is designed for demonstration purposes. The
+Terraform scripts are helpful for understanding it, but they would need to be
+modified to be valid for existing Azure environments. 
 
 ### Prerequisites
 
