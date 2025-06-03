@@ -179,6 +179,13 @@ resource "azurerm_private_dns_zone" "sites" {
   tags                = local.common_tags
 }
 
+resource "azurerm_private_dns_zone" "eventhub" {
+  count               = var.enable_private_access ? 1 : 0
+  name                = local.eventhub_private_dns_zone_name
+  resource_group_name = azurerm_resource_group.main.name
+  tags                = local.common_tags
+}
+
 # Link Private DNS Zones to VNet
 resource "azurerm_private_dns_zone_virtual_network_link" "storage" {
   count                 = var.enable_private_access ? 1 : 0
@@ -195,6 +202,16 @@ resource "azurerm_private_dns_zone_virtual_network_link" "sites" {
   name                  = "sites-dns-link"
   resource_group_name   = azurerm_resource_group.main.name
   private_dns_zone_name = azurerm_private_dns_zone.sites[0].name
+  virtual_network_id    = azurerm_virtual_network.main.id
+  registration_enabled  = false
+  tags                  = local.common_tags
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "eventhub" {
+  count                 = var.enable_private_access ? 1 : 0
+  name                  = "eventhub-dns-link"
+  resource_group_name   = azurerm_resource_group.main.name
+  private_dns_zone_name = azurerm_private_dns_zone.eventhub[0].name
   virtual_network_id    = azurerm_virtual_network.main.id
   registration_enabled  = false
   tags                  = local.common_tags
@@ -266,16 +283,38 @@ resource "azurerm_private_endpoint" "storage" {
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
   subnet_id           = azurerm_subnet.private_endpoints.id
-
   private_service_connection {
     name                           = "storage-private-connection"
     private_connection_resource_id = azurerm_storage_account.main.id
     subresource_names              = ["blob"]
     is_manual_connection           = false
   }
+  
   private_dns_zone_group {
     name                 = "storage-dns-zone-group"
     private_dns_zone_ids = [azurerm_private_dns_zone.storage[0].id]
+  }
+
+  tags = local.common_tags
+}
+
+# Private Endpoint for Event Hub Namespace
+resource "azurerm_private_endpoint" "eventhub" {
+  count               = var.enable_private_access ? 1 : 0
+  name                = local.eventhub_private_endpoint_name
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  subnet_id           = azurerm_subnet.private_endpoints.id
+
+  private_service_connection {
+    name                           = "eventhub-private-connection"
+    private_connection_resource_id = azurerm_eventhub_namespace.main.id
+    subresource_names              = ["namespace"]
+    is_manual_connection           = false
+  }
+  private_dns_zone_group {
+    name                 = "eventhub-dns-zone-group"
+    private_dns_zone_ids = [azurerm_private_dns_zone.eventhub[0].id]
   }
 
   tags = local.common_tags
@@ -304,8 +343,21 @@ resource "azurerm_eventhub_namespace" "main" {
   sku                 = var.eventhub_sku
   capacity            = var.eventhub_capacity
 
+  # Disable public network access when private access is enabled
+  public_network_access_enabled = !var.enable_private_access
+
   identity {
     type = "SystemAssigned"
+  }
+
+  # Network rules for private access
+  dynamic "network_rulesets" {
+    for_each = var.enable_private_access ? [1] : []
+    content {
+      default_action                 = "Deny"
+      public_network_access_enabled  = false
+      trusted_service_access_enabled = true
+    }
   }
 
   tags = local.common_tags

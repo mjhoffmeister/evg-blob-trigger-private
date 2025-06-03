@@ -29,14 +29,15 @@ locals {
 
   # Application Insights
   app_insights_name = "appi-${local.naming_prefix}"
-
   # Private DNS Zones
-  storage_private_dns_zone_name = "privatelink.blob.core.windows.net"
-  sites_private_dns_zone_name   = "privatelink.azurewebsites.net"
+  storage_private_dns_zone_name   = "privatelink.blob.core.windows.net"
+  sites_private_dns_zone_name     = "privatelink.azurewebsites.net"
+  eventhub_private_dns_zone_name  = "privatelink.servicebus.windows.net"
 
   # Private Endpoints
-  storage_private_endpoint_name = "pe-st-${local.naming_prefix}"
-  func_private_endpoint_name    = "pe-func-${local.naming_prefix}"
+  storage_private_endpoint_name  = "pe-st-${local.naming_prefix}"
+  func_private_endpoint_name     = "pe-func-${local.naming_prefix}"
+  eventhub_private_endpoint_name = "pe-evh-${local.naming_prefix}"
 
   # Bastion and Jumpbox
   bastion_subnet_name = "AzureBastionSubnet" # This name is required by Azure

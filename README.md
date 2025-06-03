@@ -7,10 +7,10 @@ This repository demonstrates a secure Azure Event Grid system that processes blo
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐    ┌───────────────────┐
 │   Blob Storage  │───▶│   Event Grid     │───▶│   Event Hub     │───▶│  Azure Function │
-│  (Private EP)   │    │  System Topic    │    │   Namespace     │    │  (VNet Integrated)│
+│  (Private EP)   │    │  System Topic    │    │  (Private EP)   │    │  (VNet Integrated)│
 └─────────────────┘    └──────────────────┘    └─────────────────┘    └───────────────────┘
-         │                                                                       │
-         └───────────────────────────────────────────────────────────────────────┘
+         │                                               │                         │
+         └───────────────────────────────────────────────┴─────────────────────────┘
                               Private Virtual Network (10.0.0.0/16)
 ```
 
@@ -27,7 +27,7 @@ This repository demonstrates a secure Azure Event Grid system that processes blo
 
 This solution's architecture is designed for demonstration purposes. The
 Terraform scripts are helpful for understanding it, but they would need to be
-modified to be valid for existing Azure environments. 
+modified to be valid for existing Azure environments.
 
 ### Prerequisites
 
@@ -94,7 +94,7 @@ evg-blob-trigger-private/
 ## 🔒 Private Mode Architecture (Production)
 
 ### Network Security Components
-- **Private Endpoints**: Storage (10.0.1.4) and Function App (10.0.1.5) accessible only within VNet
+- **Private Endpoints**: Storage (10.0.1.4), Event Hub (10.0.1.6), and Function App (10.0.1.5) accessible only within VNet
 - **VNet Integration**: Function App integrated with dedicated subnet for secure resource access
 - **Network Isolation**: All communication through private IP addresses within 10.0.0.0/16 address space
 - **Service Endpoints**: Enhanced security for storage account access from function subnet
@@ -104,7 +104,8 @@ evg-blob-trigger-private/
 Virtual Network (10.0.0.0/16)
 ├── Private Endpoints Subnet (10.0.1.0/24)
 │   ├── Storage Account Private Endpoint (10.0.1.4)
-│   └── Function App Private Endpoint (10.0.1.5)
+│   ├── Function App Private Endpoint (10.0.1.5)
+│   └── Event Hub Namespace Private Endpoint (10.0.1.6)
 ├── Function App Subnet (10.0.2.0/24)
 │   └── VNet-Integrated Function App
 └── Jumpbox Subnet (10.0.3.0/24)
@@ -117,9 +118,10 @@ Virtual Network (10.0.0.0/16)
 - **Private DNS**: Internal name resolution for private endpoints (*.privatelink.azurewebsites.net)
 
 ### Security Features
-- **Zero Public Access**: Storage account completely isolated from internet
+- **Zero Public Access**: Storage account and Event Hub namespace completely isolated from internet
 - **RBAC-Only Authentication**: No connection strings, all access via managed identity
 - **Premium Plan**: EP1 plan required for VNet integration capabilities
+- **Event Grid Integration**: Trusted service access enables Event Grid to communicate with private Event Hub
 
 ## 📊 Monitoring & Observability
 

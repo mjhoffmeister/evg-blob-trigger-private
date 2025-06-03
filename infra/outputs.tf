@@ -113,6 +113,11 @@ output "function_app_private_endpoint_ip" {
   value       = var.enable_private_access ? azurerm_private_endpoint.function_app[0].private_service_connection[0].private_ip_address : null
 }
 
+output "eventhub_private_endpoint_ip" {
+  description = "Private IP address of the Event Hub private endpoint"
+  value       = var.enable_private_access ? azurerm_private_endpoint.eventhub[0].private_service_connection[0].private_ip_address : null
+}
+
 output "application_insights_name" {
   description = "Name of the Application Insights instance"
   value       = azurerm_application_insights.main.name
