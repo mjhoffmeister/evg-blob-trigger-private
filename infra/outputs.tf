@@ -105,12 +105,12 @@ output "function_app_subnet_id" {
 
 output "storage_private_endpoint_ip" {
   description = "Private IP address of the storage private endpoint"
-  value       = azurerm_private_endpoint.storage.private_service_connection[0].private_ip_address
+  value       = var.enable_private_access ? azurerm_private_endpoint.storage[0].private_service_connection[0].private_ip_address : null
 }
 
 output "function_app_private_endpoint_ip" {
   description = "Private IP address of the function app private endpoint"
-  value       = azurerm_private_endpoint.function_app.private_service_connection[0].private_ip_address
+  value       = var.enable_private_access ? azurerm_private_endpoint.function_app[0].private_service_connection[0].private_ip_address : null
 }
 
 output "application_insights_name" {
@@ -132,45 +132,45 @@ output "application_insights_connection_string" {
 
 output "bastion_name" {
   description = "Name of the Azure Bastion host"
-  value       = azurerm_bastion_host.main.name
+  value       = var.create_bastion_jumpbox ? azurerm_bastion_host.main[0].name : null
 }
 
 output "bastion_id" {
   description = "ID of the Azure Bastion host"
-  value       = azurerm_bastion_host.main.id
+  value       = var.create_bastion_jumpbox ? azurerm_bastion_host.main[0].id : null
 }
 
 output "bastion_public_ip" {
   description = "Public IP address of the Azure Bastion"
-  value       = azurerm_public_ip.bastion.ip_address
+  value       = var.create_bastion_jumpbox ? azurerm_public_ip.bastion[0].ip_address : null
 }
 
 output "jumpbox_vm_name" {
   description = "Name of the jumpbox virtual machine"
-  value       = azurerm_windows_virtual_machine.jumpbox.name
+  value       = var.create_bastion_jumpbox ? azurerm_windows_virtual_machine.jumpbox[0].name : null
 }
 
 output "jumpbox_vm_id" {
   description = "ID of the jumpbox virtual machine"
-  value       = azurerm_windows_virtual_machine.jumpbox.id
+  value       = var.create_bastion_jumpbox ? azurerm_windows_virtual_machine.jumpbox[0].id : null
 }
 
 output "jumpbox_private_ip" {
   description = "Private IP address of the jumpbox VM"
-  value       = azurerm_network_interface.jumpbox.private_ip_address
+  value       = var.create_bastion_jumpbox ? azurerm_network_interface.jumpbox[0].private_ip_address : null
 }
 
 output "jumpbox_admin_username" {
   description = "Admin username for the jumpbox VM"
-  value       = azurerm_windows_virtual_machine.jumpbox.admin_username
+  value       = var.create_bastion_jumpbox ? azurerm_windows_virtual_machine.jumpbox[0].admin_username : null
 }
 
 output "bastion_subnet_id" {
   description = "ID of the Bastion subnet"
-  value       = azurerm_subnet.bastion.id
+  value       = var.create_bastion_jumpbox ? azurerm_subnet.bastion[0].id : null
 }
 
 output "jumpbox_subnet_id" {
   description = "ID of the jumpbox subnet"
-  value       = azurerm_subnet.jumpbox.id
+  value       = var.create_bastion_jumpbox ? azurerm_subnet.jumpbox[0].id : null
 }

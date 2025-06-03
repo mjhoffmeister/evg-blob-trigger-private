@@ -13,7 +13,7 @@ variable "environment" {
 variable "project_name" {
   description = "Project name used for naming resources"
   type        = string
-  default     = "evgblobtrigpvt"
+  default     = "evgblobpvt"
 }
 
 variable "blob_container_name" {
@@ -82,6 +82,12 @@ variable "function_app_version" {
   default     = "8"
 }
 
+variable "app_service_plan_sku" {
+  description = "App Service Plan SKU - Y1 for Consumption, EP1/EP2/EP3 for Premium (required for VNet integration)"
+  type        = string
+  default     = "Y1"
+}
+
 variable "tags" {
   description = "Tags to apply to all resources"
   type        = map(string)
@@ -121,4 +127,29 @@ variable "jumpbox_admin_password" {
   type        = string
   default     = "P@ssw0rd123!"
   sensitive   = true
+}
+
+# Access Mode Configuration
+variable "enable_private_access" {
+  description = "Enable private access mode. When true, resources will use private endpoints and restrict public access."
+  type        = bool
+  default     = true
+}
+
+variable "allow_public_blob_access" {
+  description = "Allow public access to blob storage. Only effective when enable_private_access is false."
+  type        = bool
+  default     = false
+}
+
+variable "function_app_public_network_access" {
+  description = "Allow public network access to Function App. When false, only VNet integrated access is allowed."
+  type        = bool
+  default     = false
+}
+
+variable "create_bastion_jumpbox" {
+  description = "Create Azure Bastion and jumpbox VM for accessing private resources. Recommended when enable_private_access is true."
+  type        = bool
+  default     = true
 }

@@ -67,6 +67,7 @@ resource "azurerm_network_security_group" "function_app" {
 
 # Network Security Group for Jumpbox
 resource "azurerm_network_security_group" "jumpbox" {
+  count               = var.create_bastion_jumpbox ? 1 : 0
   name                = local.jumpbox_nsg_name
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
@@ -103,6 +104,7 @@ resource "azurerm_subnet" "private_endpoints" {
   resource_group_name  = azurerm_resource_group.main.name
   virtual_network_name = azurerm_virtual_network.main.name
   address_prefixes     = [var.private_endpoints_subnet_cidr]
+  service_endpoints    = ["Microsoft.Storage"]
 }
 
 resource "azurerm_subnet" "function_app" {
@@ -110,6 +112,7 @@ resource "azurerm_subnet" "function_app" {
   resource_group_name  = azurerm_resource_group.main.name
   virtual_network_name = azurerm_virtual_network.main.name
   address_prefixes     = [var.function_app_subnet_cidr]
+  service_endpoints    = ["Microsoft.Storage"]
 
   delegation {
     name = "Microsoft.Web.serverFarms"
@@ -128,6 +131,7 @@ resource "azurerm_subnet" "reserved" {
 }
 
 resource "azurerm_subnet" "bastion" {
+  count                = var.create_bastion_jumpbox ? 1 : 0
   name                 = local.bastion_subnet_name
   resource_group_name  = azurerm_resource_group.main.name
   virtual_network_name = azurerm_virtual_network.main.name
@@ -135,10 +139,12 @@ resource "azurerm_subnet" "bastion" {
 }
 
 resource "azurerm_subnet" "jumpbox" {
+  count                = var.create_bastion_jumpbox ? 1 : 0
   name                 = local.jumpbox_subnet_name
   resource_group_name  = azurerm_resource_group.main.name
   virtual_network_name = azurerm_virtual_network.main.name
   address_prefixes     = [var.jumpbox_subnet_cidr]
+  service_endpoints    = ["Microsoft.Storage"]
 }
 
 # Associate NSGs with Subnets
@@ -153,18 +159,21 @@ resource "azurerm_subnet_network_security_group_association" "function_app" {
 }
 
 resource "azurerm_subnet_network_security_group_association" "jumpbox" {
-  subnet_id                 = azurerm_subnet.jumpbox.id
-  network_security_group_id = azurerm_network_security_group.jumpbox.id
+  count                     = var.create_bastion_jumpbox ? 1 : 0
+  subnet_id                 = azurerm_subnet.jumpbox[0].id
+  network_security_group_id = azurerm_network_security_group.jumpbox[0].id
 }
 
 # Private DNS Zones
 resource "azurerm_private_dns_zone" "storage" {
+  count               = var.enable_private_access ? 1 : 0
   name                = local.storage_private_dns_zone_name
   resource_group_name = azurerm_resource_group.main.name
   tags                = local.common_tags
 }
 
 resource "azurerm_private_dns_zone" "sites" {
+  count               = var.enable_private_access ? 1 : 0
   name                = local.sites_private_dns_zone_name
   resource_group_name = azurerm_resource_group.main.name
   tags                = local.common_tags
@@ -172,18 +181,20 @@ resource "azurerm_private_dns_zone" "sites" {
 
 # Link Private DNS Zones to VNet
 resource "azurerm_private_dns_zone_virtual_network_link" "storage" {
+  count                 = var.enable_private_access ? 1 : 0
   name                  = "storage-dns-link"
   resource_group_name   = azurerm_resource_group.main.name
-  private_dns_zone_name = azurerm_private_dns_zone.storage.name
+  private_dns_zone_name = azurerm_private_dns_zone.storage[0].name
   virtual_network_id    = azurerm_virtual_network.main.id
   registration_enabled  = false
   tags                  = local.common_tags
 }
 
 resource "azurerm_private_dns_zone_virtual_network_link" "sites" {
+  count                 = var.enable_private_access ? 1 : 0
   name                  = "sites-dns-link"
   resource_group_name   = azurerm_resource_group.main.name
-  private_dns_zone_name = azurerm_private_dns_zone.sites.name
+  private_dns_zone_name = azurerm_private_dns_zone.sites[0].name
   virtual_network_id    = azurerm_virtual_network.main.id
   registration_enabled  = false
   tags                  = local.common_tags
@@ -199,9 +210,9 @@ resource "azurerm_storage_account" "main" {
   account_kind             = "StorageV2"
   access_tier              = "Hot"
 
-  # Security settings
-  public_network_access_enabled   = false
-  allow_nested_items_to_be_public = false
+  # Security settings - Toggle based on access mode
+  public_network_access_enabled   = var.enable_private_access ? false : true
+  allow_nested_items_to_be_public = var.enable_private_access ? false : var.allow_public_blob_access
   shared_access_key_enabled       = true
 
   # Blob properties
@@ -214,10 +225,13 @@ resource "azurerm_storage_account" "main" {
     }
     versioning_enabled = true
   }
-
   network_rules {
-    default_action = "Deny"
+    default_action = var.enable_private_access ? "Deny" : "Allow"
     bypass         = ["AzureServices"]
+    virtual_network_subnet_ids = var.enable_private_access ? [
+      azurerm_subnet.function_app.id,
+      azurerm_subnet.private_endpoints.id
+    ] : []
   }
 
   tags = local.common_tags
@@ -226,7 +240,7 @@ resource "azurerm_storage_account" "main" {
 # Storage Container
 resource "azurerm_storage_container" "main" {
   name                  = var.blob_container_name
-  storage_account_id    = azurerm_storage_account.main.id
+  storage_account_name  = azurerm_storage_account.main.name
   container_access_type = "private"
 }
 
@@ -247,6 +261,7 @@ resource "azurerm_storage_account" "function_app" {
 
 # Private Endpoint for Storage Account
 resource "azurerm_private_endpoint" "storage" {
+  count               = var.enable_private_access ? 1 : 0
   name                = local.storage_private_endpoint_name
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
@@ -258,10 +273,9 @@ resource "azurerm_private_endpoint" "storage" {
     subresource_names              = ["blob"]
     is_manual_connection           = false
   }
-
   private_dns_zone_group {
     name                 = "storage-dns-zone-group"
-    private_dns_zone_ids = [azurerm_private_dns_zone.storage.id]
+    private_dns_zone_ids = [azurerm_private_dns_zone.storage[0].id]
   }
 
   tags = local.common_tags
@@ -300,7 +314,8 @@ resource "azurerm_eventhub_namespace" "main" {
 # Event Hub
 resource "azurerm_eventhub" "main" {
   name                = local.eventhub_name
-  namespace_id        = azurerm_eventhub_namespace.main.id
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  resource_group_name = azurerm_resource_group.main.name
   partition_count     = 2
   message_retention   = 1
 }
@@ -316,6 +331,17 @@ resource "azurerm_eventhub_authorization_rule" "eventgrid" {
   manage              = false
 }
 
+# Log Analytics Workspace for Application Insights
+resource "azurerm_log_analytics_workspace" "main" {
+  name                = "law-${var.project_name}-${var.location}"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  sku                 = "PerGB2018"
+  retention_in_days   = 30
+
+  tags = local.common_tags
+}
+
 # Application Insights
 resource "azurerm_application_insights" "main" {
   name                = local.app_insights_name
@@ -323,17 +349,18 @@ resource "azurerm_application_insights" "main" {
   resource_group_name = azurerm_resource_group.main.name
   application_type    = "web"
   retention_in_days   = 30
+  workspace_id        = azurerm_log_analytics_workspace.main.id
 
   tags = local.common_tags
 }
 
-# App Service Plan (Consumption)
+# App Service Plan (Consumption or Premium based on configuration)
 resource "azurerm_service_plan" "main" {
   name                = local.app_service_plan_name
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
   os_type             = "Windows"
-  sku_name            = "Y1"
+  sku_name            = var.app_service_plan_sku
 
   tags = local.common_tags
 }
@@ -344,31 +371,40 @@ resource "azurerm_windows_function_app" "main" {
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
 
-  storage_account_name       = azurerm_storage_account.function_app.name
-  storage_account_access_key = azurerm_storage_account.function_app.primary_access_key
-  service_plan_id            = azurerm_service_plan.main.id
+  storage_account_name = azurerm_storage_account.function_app.name
+  storage_uses_managed_identity = true
+  service_plan_id       = azurerm_service_plan.main.id
 
-  # VNet integration
-  virtual_network_subnet_id = azurerm_subnet.function_app.id
-
+  # VNet integration - only when private access is enabled
+  virtual_network_subnet_id = var.enable_private_access ? azurerm_subnet.function_app.id : null
+    # Public network access
+  public_network_access_enabled = var.function_app_public_network_access
   site_config {
     application_stack {
       dotnet_version = var.function_app_version
     }
 
-    # Enable VNet route all for outbound traffic
-    vnet_route_all_enabled = true
+    # Enable 64-bit worker process
+    use_32_bit_worker = false    # Enable VNet route all for outbound traffic only in private mode
+    vnet_route_all_enabled = var.enable_private_access
 
     application_insights_key               = azurerm_application_insights.main.instrumentation_key
     application_insights_connection_string = azurerm_application_insights.main.connection_string
   }
 
   app_settings = {
-    "FUNCTIONS_WORKER_RUNTIME"   = var.function_app_runtime
-    "WEBSITE_RUN_FROM_PACKAGE"   = "1"
-    "EVENTHUB_CONNECTION_STRING" = azurerm_eventhub_authorization_rule.eventgrid.primary_connection_string
-    "STORAGE_ACCOUNT_NAME"       = azurerm_storage_account.main.name
-    "STORAGE_CONTAINER_NAME"     = azurerm_storage_container.main.name
+    "FUNCTIONS_WORKER_RUNTIME"                           = var.function_app_runtime
+    "FUNCTIONS_EXTENSION_VERSION"                        = "~4"
+    "WEBSITE_RUN_FROM_PACKAGE"                           = "1"
+    "WEBSITE_USE_PLACEHOLDER_DOTNETISOLATED"             = "1"
+    "AzureWebJobsStorage__accountname"                   = azurerm_storage_account.function_app.name
+    "AzureWebJobsStorage__credential"                    = "managedidentity"
+    "EventHubConnection__fullyQualifiedNamespace"        = "${azurerm_eventhub_namespace.main.name}.servicebus.windows.net"
+    "EventHubConnection__credential"                     = "managedidentity"
+    "EVENTHUB_NAMESPACE"                                 = azurerm_eventhub_namespace.main.name
+    "EVENTHUB_NAME"                                      = azurerm_eventhub.main.name
+    "STORAGE_ACCOUNT_NAME"                               = azurerm_storage_account.main.name
+    "STORAGE_CONTAINER_NAME"                             = azurerm_storage_container.main.name
   }
 
   identity {
@@ -380,6 +416,7 @@ resource "azurerm_windows_function_app" "main" {
 
 # Private Endpoint for Function App
 resource "azurerm_private_endpoint" "function_app" {
+  count               = var.enable_private_access ? 1 : 0
   name                = local.func_private_endpoint_name
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
@@ -391,10 +428,9 @@ resource "azurerm_private_endpoint" "function_app" {
     subresource_names              = ["sites"]
     is_manual_connection           = false
   }
-
   private_dns_zone_group {
     name                 = "function-dns-zone-group"
-    private_dns_zone_ids = [azurerm_private_dns_zone.sites.id]
+    private_dns_zone_ids = [azurerm_private_dns_zone.sites[0].id]
   }
 
   tags = local.common_tags
@@ -418,6 +454,27 @@ resource "azurerm_role_assignment" "function_to_storage" {
 resource "azurerm_role_assignment" "function_to_eventhub" {
   scope                = azurerm_eventhub_namespace.main.id
   role_definition_name = "Azure Event Hubs Data Receiver"
+  principal_id         = azurerm_windows_function_app.main.identity[0].principal_id
+}
+
+# Role Assignment: Function App -> Storage Blob Data Owner (Function App storage account)
+resource "azurerm_role_assignment" "function_to_function_storage" {
+  scope                = azurerm_storage_account.function_app.id
+  role_definition_name = "Storage Blob Data Owner"
+  principal_id         = azurerm_windows_function_app.main.identity[0].principal_id
+}
+
+# Role Assignment: Function App -> Storage Account Contributor (Function App storage account)
+resource "azurerm_role_assignment" "function_to_function_storage_account" {
+  scope                = azurerm_storage_account.function_app.id
+  role_definition_name = "Storage Account Contributor"
+  principal_id         = azurerm_windows_function_app.main.identity[0].principal_id
+}
+
+# Role Assignment: Function App -> Storage Table Data Contributor (Function App storage account)
+resource "azurerm_role_assignment" "function_to_function_storage_table" {
+  scope                = azurerm_storage_account.function_app.id
+  role_definition_name = "Storage Table Data Contributor"
   principal_id         = azurerm_windows_function_app.main.identity[0].principal_id
 }
 
@@ -449,6 +506,7 @@ resource "azurerm_eventgrid_event_subscription" "storage_to_eventhub" {
 
 # Public IP for Azure Bastion
 resource "azurerm_public_ip" "bastion" {
+  count               = var.create_bastion_jumpbox ? 1 : 0
   name                = local.bastion_pip_name
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
@@ -459,15 +517,15 @@ resource "azurerm_public_ip" "bastion" {
 
 # Azure Bastion Host
 resource "azurerm_bastion_host" "main" {
+  count               = var.create_bastion_jumpbox ? 1 : 0
   name                = local.bastion_name
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
   sku                 = "Basic"
-
   ip_configuration {
     name                 = "bastion-ip-config"
-    subnet_id            = azurerm_subnet.bastion.id
-    public_ip_address_id = azurerm_public_ip.bastion.id
+    subnet_id            = azurerm_subnet.bastion[0].id
+    public_ip_address_id = azurerm_public_ip.bastion[0].id
   }
 
   tags = local.common_tags
@@ -475,13 +533,13 @@ resource "azurerm_bastion_host" "main" {
 
 # Network Interface for Jumpbox VM
 resource "azurerm_network_interface" "jumpbox" {
+  count               = var.create_bastion_jumpbox ? 1 : 0
   name                = local.jumpbox_nic_name
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
-
   ip_configuration {
     name                          = "jumpbox-ip-config"
-    subnet_id                     = azurerm_subnet.jumpbox.id
+    subnet_id                     = azurerm_subnet.jumpbox[0].id
     private_ip_address_allocation = "Dynamic"
   }
 
@@ -490,7 +548,9 @@ resource "azurerm_network_interface" "jumpbox" {
 
 # Jumpbox Virtual Machine
 resource "azurerm_windows_virtual_machine" "jumpbox" {
+  count               = var.create_bastion_jumpbox ? 1 : 0
   name                = local.jumpbox_vm_name
+  computer_name       = "jumpbox"
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
   size                = var.jumpbox_vm_size
@@ -498,7 +558,7 @@ resource "azurerm_windows_virtual_machine" "jumpbox" {
   admin_password      = var.jumpbox_admin_password
 
   network_interface_ids = [
-    azurerm_network_interface.jumpbox.id,
+    azurerm_network_interface.jumpbox[0].id,
   ]
 
   os_disk {

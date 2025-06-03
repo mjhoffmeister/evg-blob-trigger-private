@@ -1,6 +1,6 @@
 locals {
-  # Common naming convention
-  naming_prefix = "${var.project_name}-${var.environment}-${var.location}"
+  # Common naming convention (without environment)
+  naming_prefix = "${var.project_name}-${var.location}"
 
   # Resource names using Azure naming conventions
   resource_group_name = "rg-${local.naming_prefix}"
@@ -11,11 +11,9 @@ locals {
   function_app_subnet_name      = "snet-func-${local.naming_prefix}"
   reserved_subnet_name          = "snet-reserved-${local.naming_prefix}"
   nsg_pe_name                   = "nsg-pe-${local.naming_prefix}"
-  nsg_func_name                 = "nsg-func-${local.naming_prefix}"
-
-  # Storage
-  storage_account_name      = "st${replace(local.naming_prefix, "-", "")}"
-  func_storage_account_name = "stfunc${replace(local.naming_prefix, "-", "")}"
+  nsg_func_name                 = "nsg-func-${local.naming_prefix}"  # Storage (shortened to meet 24 char limit)
+  storage_account_name      = "st${substr(replace("${var.project_name}${var.location}", "-", ""), 0, 22)}"
+  func_storage_account_name = "stfn${substr(replace("${var.project_name}${var.location}", "-", ""), 0, 20)}"
 
   # Event Grid
   eventgrid_topic_name        = "evgt-${local.naming_prefix}"

@@ -1,5 +1,6 @@
-# Example Terraform variables file
-# Copy this file to terraform.tfvars and modify the values as needed
+# Private Access Mode Configuration
+# This configuration enables secure private connectivity with private endpoints,
+# VNet integration, and restricted network access
 
 # Azure region where resources will be deployed
 location = "westus2"
@@ -8,7 +9,7 @@ location = "westus2"
 environment = "dev"
 
 # Project name used for naming resources
-project_name = "evgblobtrigpvt"
+project_name = "evgblobpvt"
 
 # Name of the blob container to monitor for events
 blob_container_name = "uploads"
@@ -28,27 +29,28 @@ eventhub_sku = "Standard"
 eventhub_capacity = 1
 
 # Function App configuration
-function_app_runtime = "dotnet"
-function_app_version = "8"
+function_app_runtime = "dotnet-isolated"
+function_app_version = "v8.0"
+app_service_plan_sku = "EP1"  # Premium plan required for VNet integration
 
-# Bastion and Jumpbox configuration
+# Bastion and Jumpbox configuration for secure access
 bastion_subnet_cidr = "10.0.4.0/24"
 jumpbox_subnet_cidr = "10.0.5.0/24"
 jumpbox_vm_size = "Standard_B2s"
-jumpbox_admin_username = "azureuser"
-# jumpbox_admin_password = "P@ssw0rd123!"  # Uncomment and set secure password
+# jumpbox_admin_username = ""  # Set username
+# jumpbox_admin_password = ""  # Set password
 
-# Access Mode Configuration
-# Set to true for private access mode with private endpoints and VNet integration
+# PRIVATE ACCESS MODE SETTINGS
+# Enable private endpoints and VNet integration for secure connectivity
 enable_private_access = true
 
-# Set to true to allow public access to blob storage (only when enable_private_access = false)
+# Deny public access to blob storage for enhanced security
 allow_public_blob_access = false
 
-# Set to true to allow public network access to Function App
+# Disable public network access to Function App
 function_app_public_network_access = false
 
-# Set to true to create Azure Bastion and jumpbox VM for accessing private resources
+# Create Bastion and jumpbox for secure management access
 create_bastion_jumpbox = true
 
 # Tags applied to all resources
@@ -58,4 +60,5 @@ tags = {
   ManagedBy   = "Terraform"
   Owner       = "DevOps Team"
   CostCenter  = "Engineering"
+  AccessMode  = "Private"
 }

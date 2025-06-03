@@ -1,0 +1,64 @@
+# Public Access Mode Configuration
+# This configuration enables simplified public connectivity without private endpoints
+# for development and testing scenarios
+
+# Azure region where resources will be deployed
+location = "westus2"
+
+# Environment name (dev, staging, prod)
+environment = "dev"
+
+# Project name used for naming resources
+project_name = "evgblobpvt"
+
+# Name of the blob container to monitor for events
+blob_container_name = "uploads"
+
+# Virtual network configuration (minimal for public mode)
+vnet_address_space = ["10.0.0.0/16"]
+private_endpoints_subnet_cidr = "10.0.1.0/24"  # Not used in public mode
+function_app_subnet_cidr = "10.0.2.0/24"
+reserved_subnet_cidr = "10.0.3.0/24"
+
+# Storage account configuration
+storage_account_tier = "Standard"
+storage_account_replication_type = "LRS"
+
+# Event Hub configuration
+eventhub_sku = "Standard"
+eventhub_capacity = 1
+
+# Function App configuration
+function_app_runtime = "dotnet-isolated"
+function_app_version = "v8.0"
+app_service_plan_sku = "Y1"  # Consumption plan for cost-effective public access
+
+# Bastion and Jumpbox configuration (not needed in public mode)
+bastion_subnet_cidr = "10.0.4.0/24"    # Not used when create_bastion_jumpbox = false
+jumpbox_subnet_cidr = "10.0.5.0/24"    # Not used when create_bastion_jumpbox = false
+jumpbox_vm_size = "Standard_B2s"       # Not used when create_bastion_jumpbox = false
+# jumpbox_admin_username = ""          # Not used when create_bastion_jumpbox = false
+# jumpbox_admin_password = ""          # Not used when create_bastion_jumpbox = false
+
+# PUBLIC ACCESS MODE SETTINGS
+# Disable private endpoints for simplified connectivity
+enable_private_access = false
+
+# Allow public access to blob storage for easier development
+allow_public_blob_access = true
+
+# Enable public network access to Function App
+function_app_public_network_access = true
+
+# Skip Bastion and jumpbox creation to reduce costs
+create_bastion_jumpbox = false
+
+# Tags applied to all resources
+tags = {
+  Environment = "dev"
+  Project     = "EventGridBlobTrigger"
+  ManagedBy   = "Terraform"
+  Owner       = "DevOps Team"
+  CostCenter  = "Engineering"
+  AccessMode  = "Public"
+}
